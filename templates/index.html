@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CLI Command Manager</title>
+    <style>
+        body { font-family: sans-serif; margin: 2rem; background: #f4f4f4; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        h1 { margin-top: 0; }
+        .controls { display: flex; gap: 10px; margin-bottom: 20px; }
+        input[type="text"] { flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        button { padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; background: #007bff; color: white; }
+        button:hover { background: #0056b3; }
+        button.active { background: #004494; font-weight: bold; }
+        
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 10px; border-bottom: 1px solid #eee; text-align: left; }
+        th { background: #f8f9fa; }
+        td.command { font-family: monospace; }
+        td.actions { text-align: right; }
+        .copy-btn { background: #28a745; font-size: 0.8em; }
+        .copy-btn:hover { background: #218838; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>CLI Command Manager</h1>
+        <div class="controls">
+            <input type="text" id="search" placeholder="Search commands...">
+            <button id="sort-freq">Most Frequent</button>
+            <button id="sort-last" class="active">Last Used</button>
+        </div>
+        
+        <table id="commands-table">
+            <thead>
+                <tr>
+                    <th>Command</th>
+                    <th width="100">Frequency</th>
+                    <th width="150">Last Used</th>
+                    <th width="80">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Populated by JS -->
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        let currentSort = 'last_used';
+        
+        async function fetchCommands() {
+            const search = document.getElementById('search').value;
+            const res = await fetch(`/api/commands?sort=${currentSort}&q=${search}`);
+            const data = await res.json();
+            renderTable(data);
+        }
+        
+        function renderTable(commands) {
+            const tbody = document.querySelector('#commands-table tbody');
+            tbody.innerHTML = '';
+            
+            commands.forEach(cmd => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="command">${escapeHtml(cmd.command)}</td>
+                    <td>${cmd.frequency}</td>
+                    <td>${new Date(cmd.last_used).toLocaleString()}</td>
+                    <td class="actions">
+                        <button class="copy-btn" onclick="copyToClipboard('${escapeJs(cmd.command)}')">Copy</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function escapeJs(text) {
+            return text.replace(/'/g, "\\'").replace(/"/g, '\\"');
+        }
+        
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                alert('Copied to clipboard!');
+            }).catch(err => {
+                console.error('Could not copy text: ', err);
+            });
+        }
+        
+        document.getElementById('search').addEventListener('input', fetchCommands);
+        document.getElementById('sort-freq').addEventListener('click', () => {
+            currentSort = 'frequency';
+            document.getElementById('sort-freq').classList.add('active');
+            document.getElementById('sort-last').classList.remove('active');
+            fetchCommands();
+        });
+        document.getElementById('sort-last').addEventListener('click', () => {
+            currentSort = 'last_used';
+            document.getElementById('sort-last').classList.add('active');
+            document.getElementById('sort-freq').classList.remove('active');
+            fetchCommands();
+        });
+        
+        // Initial load
+        fetchCommands();
+    </script>
+</body>
+</html>
